@@ -1,0 +1,13 @@
+Build.PL
+Changes
+MANIFEST
+META.yml
+Makefile.PL
+README
+lib/Shell/Parser.pm
+t/00load.t
+t/01api.t
+t/distchk.t
+t/podcover.t
+t/pod.t
+t/portfs.t
