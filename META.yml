@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: Shell-Parser
-version: 0.02
+version: 0.03
 author:
   - |-
     Sébastien Aperghis-Tramoni <sebastien@aperghis.net>
@@ -12,5 +12,5 @@ requires:
 provides:
   Shell::Parser:
     file: lib/Shell/Parser.pm
-    version: 0.02
-generated_by: Module::Build version 0.26
+    version: 0.03
+generated_by: Module::Build version 0.2607

@@ -4,7 +4,7 @@ use Carp;
 use Text::ParseWords;
 
 { no strict;
-  $VERSION = '0.02';
+  $VERSION = '0.03';
 }
 
 =head1 NAME
@@ -13,7 +13,7 @@ Shell::Parser - Simple shell script parser
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =head1 SYNOPSIS
 
@@ -543,8 +543,9 @@ SEeacute>bastien Aperghis-Tramoni, E<lt>sebastien@aperghis.netE<gt>
 
 Please report any bugs or feature requests to
 C<bug-shell-parser@rt.cpan.org>, or through the web interface at
-L<https://rt.cpan.org/>.  I will be notified, and then you'll automatically
-be notified of progress on your bug as I make changes.
+L<https://rt.cpan.org/NoAuth/ReportBug.html?Queue=Shell-Parser>. 
+I will be notified, and then you'll automatically be notified of 
+progress on your bug as I make changes.
 
 =head1 COPYRIGHT & LICENSE
 

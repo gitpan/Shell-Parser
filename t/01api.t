@@ -4,11 +4,11 @@ BEGIN { plan tests => 15 }
 require Shell::Parser;
 
 # check that the following functions are available
-ok( defined \&Shell::Parser::new                              ); #01
-ok( defined \&Shell::Parser::parse                            ); #02
-ok( defined \&Shell::Parser::eof                              ); #03
-ok( defined \&Shell::Parser::handlers                         ); #04
-ok( defined \&Shell::Parser::syntax                           ); #05
+ok( exists &Shell::Parser::new                                ); #01
+ok( exists &Shell::Parser::parse                              ); #02
+ok( exists &Shell::Parser::eof                                ); #03
+ok( exists &Shell::Parser::handlers                           ); #04
+ok( exists &Shell::Parser::syntax                             ); #05
 
 # create an object
 my $parser = undef;

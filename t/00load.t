@@ -1,7 +1,8 @@
+use strict;
 use Test::More tests => 1;
 
 BEGIN {
-use_ok( 'Shell::Parser' );
+    use_ok( 'Shell::Parser' );
 }
 
 diag( "Testing Shell::Parser $Shell::Parser::VERSION" );

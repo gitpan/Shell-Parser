@@ -10,6 +10,7 @@ LICENSE.GPL
 lib/Shell/Parser.pm
 eg/parsedump.pl
 t/00load.t
+t/00prereq.t
 t/01api.t
 t/10handlers.t
 t/11syntax.t
