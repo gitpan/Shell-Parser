@@ -4,27 +4,32 @@ use Carp;
 use Text::ParseWords;
 
 { no strict;
-  $VERSION = '0.01';
+  $VERSION = '0.02';
 }
 
 =head1 NAME
 
-Shell::Parser - The great new Shell::Parser!
+Shell::Parser - Simple shell script parser
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =head1 SYNOPSIS
 
     use Shell::Parser;
 
-    my $parser = new Shell::Parser;
+    my $parser = new Shell::Parser syntax => 'bash', handlers => {
+        
+    };
     $parser->parse(...);
+    $parser->eof;
 
 =head1 DESCRIPTION
 
-This module implements a rudimentary shell parser in Perl. 
+This module implements a rudimentary shell script parser in Perl. 
+It was primarily written as a backend for C<Syntax::Highlight::Shell>, 
+in order to simplify the creation of the later. 
 
 =head1 METHODS
 
@@ -32,13 +37,16 @@ This module implements a rudimentary shell parser in Perl.
 
 =item new()
 
+Creates and returns a new C<Shell::Parser> object. 
+Options can be provided as key/value pairs. 
+
 B<Options>
 
 =over 4
 
 =item *
 
-C<handlers> - sets the shell code fragments handlers. 
+C<handlers> - sets the parsing events handlers. 
 See L<"handlers()"> for more information. 
 
 =item *
@@ -50,7 +58,8 @@ See L<"syntax()"> for more information.
 
 B<Examples>
 
-    my $parser = new Shell::Parser XXX;
+    my $parser = new Shell::Parser syntax => 'bash', 
+        handlers => { default => \&default_handler };
 
 =cut
 
@@ -86,6 +95,18 @@ sub new {
 
 =item parse()
 
+Parse the shell code given in argument. 
+
+B<Examples>
+
+    $parser->parse(qq{echo "hello world"\n});
+    $parser->parse(<<'SHELL');
+        for pat; do 
+            echo "greping for $pat"
+            ps aux | grep $pat
+        done
+    SHELL
+
 =cut
 
 sub parse {
@@ -97,12 +118,14 @@ sub parse {
     }
     
     my $delimiters = join '', @{ $self->{metachars} };
-    my @tokens = quotewords('[\s;]+', 'delimiters', $_[0]);
+    my @tokens = quotewords('[\s'.$delimiters.']', 'delimiters', $_[0]);
     
-    while(my $token = shift @tokens) {
+    while(defined(my $token = shift @tokens)) {
+        next unless length $token;
         $token .= shift @tokens if $tokens[0] eq $token;  # e.g: '&','&' => '&&'
         
         my $type = $self->{lookup_hash}{$token} || '';
+        $type ||= 'metachar' if index($delimiters, $token) >= 0;
         $type ||= 'comment'  if index($token, '#') == 0;
         $type ||= 'variable' if index($token, '$') == 0;
         $type ||= 'assign'   if index($token, '=') >= 0;
@@ -110,18 +133,23 @@ sub parse {
         
         # special processing
         if($type eq 'comment') {
-            $token .= shift @tokens while @tokens and index($token, "\n") < 0
+            $token .= shift @tokens while @tokens and index($token, "\n") < 0;
+            $token =~ s/(\s*)$// and unshift @tokens, $1;
         }
         if($type eq 'variable' and index($token, '(') == 1) {
             $token .= shift @tokens while @tokens and index($token, ')') < 0
         }
         
-      #print STDERR "type=$type token=<$token> \n";
         &{ $self->{handlers}{$type} }($self, token => $token, type => $type)
+          if defined $self->{handlers}{$type};
     }
 }
 
 =item eof()
+
+Tells the parser that there is no more data. 
+
+I<Note that this method is a no-op for now, but this may change in the future.>
 
 =cut
 
@@ -131,7 +159,8 @@ sub eof {
 
 =item handlers()
 
-Sets the shell code fragments handlers. Available handlers: 
+Assign handlers to parsing events using a hash or a hashref. 
+Available events: 
 
 =over 4
 
@@ -145,7 +174,7 @@ C<builtin> - handler for shell builtin commands: C<alias>, C<jobs>, C<read>...
 
 =item *
 
-C<command> - handler for external commands
+C<command> - handler for external commands (I<not implemented>)
 
 =item *
 
@@ -172,7 +201,16 @@ C<text> - handler for anything else
 There is also a C<default> handler, which will be used for any handler 
 which has not been explicitely defined. 
 
-See also L<"Handlers"> for more information on how handlers receive their data. 
+B<Examples>
+
+    # set the default event handler
+    $parser->handlers(default => \&default_handler);
+    
+    # set the 'builtin' and 'keywords' events handlers
+    $parser->handlers({ builtin => \&handle_internals, keywords => \&handle_internals });
+
+See also L<"Handlers"> for more information on how event handlers receive 
+their data in argument. 
 
 =cut
 
@@ -253,6 +291,7 @@ my %shell_syntaxes = (
     
     csh => {
         name => 'C-shell', 
+        metachars => [ qw{ ; & ( ) | < > } ], 
         keywords => [ qw(
             breaksw case default else end endif endsw foreach if switch then while
         ) ], 
@@ -267,6 +306,7 @@ my %shell_syntaxes = (
     
     tcsh => {
         name => 'TENEX C-shell', 
+        metachars => [ qw{ ; & ( ) | < > } ], 
         keywords => [ qw(
             breaksw case default else end endif endsw foreach if switch then while
         ) ], 
@@ -355,9 +395,12 @@ my %shell_syntaxes = (
 sub syntax {
     my $self = shift;
     my $old = $self->{syntax};
-    my $syntax = $self->{syntax} = $_[0] if $_[0];
+    $self->{syntax} = $_[0] if $_[0];
+    my $syntax = $self->{syntax};
     
     if($syntax ne $old) {
+        carp "Unknown syntax '$syntax' " and return unless exists $shell_syntaxes{$syntax};
+        
         # (re)initialize the lookup hash when the syntax given in argument 
         # is different from the syntax we already had
         $self->{lookup_hash} = {};
@@ -376,9 +419,36 @@ sub syntax {
 
 =head1 HANDLERS
 
-To be written. 
+During parsing, the functions defined as handlers for the corresponding 
+events will be called with the following arguments: 
 
-    sub handler {
+=over 4
+
+=item *
+
+a reference to the current C<Shell::Parser> object
+
+=item *
+
+a hash with the following keys: 
+
+=over 4
+
+=item *
+
+C<token> - the actual shell token
+
+=item *
+
+C<type> - the type of the token
+
+=back
+
+=back
+
+Therefore, a typical handler function will begin with something like this: 
+
+    sub my_handler {
         my $self = shift;
         my %args = @_;
         
@@ -386,20 +456,99 @@ To be written.
         # ...
     }
 
+=head1 EXAMPLE
+
+Here is an example that shows how the tokens are given to the events 
+handlers. It uses the script F<eg/parsedump.pl>: 
+
+    #!/usr/bin/perl
+    use strict;
+    use Shell::Parser;
+    
+    my $parser = new Shell::Parser handlers => { default => \&dumpnode };
+    $parser->parse(join '', <>);
+    
+    sub dumpnode {
+        my $self = shift;
+        my %args = @_;
+        print "$args{type}: <$args{token}>\n"
+    }
+
+Running this Perl script with the following shell script in argument: 
+
+    #!/bin/sh
+    if [ "$text" != "" ]; then grep "$text" file.txt; fi
+
+will produce the following trace: 
+
+    comment: <#!/bin/sh>
+    text: <
+    >
+    keyword: <if>
+    text: < >
+    text: <[>
+    text: < >
+    text: <"$text">
+    text: < >
+    assign: <!=>
+    text: < >
+    text: <"">
+    text: < >
+    text: <]>
+    metachar: <;>
+    text: < >
+    keyword: <then>
+    text: < >
+    text: <grep>
+    text: < >
+    text: <"$text">
+    text: < >
+    text: <file.txt>
+    metachar: <;>
+    text: < >
+    keyword: <fi>
+    text: <
+    >
+
+
+=head1 CAVEATS
+
+=over 4
+
+=item *
+
+Running C<Shell::Parser> with the C<-W> flag gives many warnings, but most 
+come from C<L<Text::ParseWords>>. 
+
+=item *
+
+Comments curently contains the newline character that terminate them. 
+This is not very intuituive and will be corrected in later versions. 
+
+=item *
+
+The C<command> event is currently unimplemented. 
+
+=item *
+
+Here-documents are currently not parsed. 
+
+=back
+
 =head1 AUTHOR
 
-Sébastien Aperghis-Tramoni, E<lt>sebastien@aperghis.netE<gt>
+SEeacute>bastien Aperghis-Tramoni, E<lt>sebastien@aperghis.netE<gt>
 
 =head1 BUGS
 
 Please report any bugs or feature requests to
 C<bug-shell-parser@rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org>.  I will be notified, and then you'll automatically
+L<https://rt.cpan.org/>.  I will be notified, and then you'll automatically
 be notified of progress on your bug as I make changes.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2004 Sébastien Aperghis-Tramoni, All Rights Reserved.
+Copyright 2004 SE<eacute>bastien Aperghis-Tramoni, All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
