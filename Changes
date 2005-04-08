@@ -1,5 +1,9 @@
 Revision history for Shell-Parser
 
+0.04    2005.04.08
+        [FIX] Applied patch from Sergey Skvortsov to avoid warnings.
+        [DOC] Added diagnostics section.
+
 0.03    2005.04.03
         [TESTS] Corrected t/01api.t
         [DOC] Added direct RT link.

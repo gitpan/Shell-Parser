@@ -4,7 +4,7 @@ use Carp;
 use Text::ParseWords;
 
 { no strict;
-  $VERSION = '0.03';
+  $VERSION = '0.04';
 }
 
 =head1 NAME
@@ -13,7 +13,7 @@ Shell::Parser - Simple shell script parser
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =head1 SYNOPSIS
 
@@ -114,7 +114,7 @@ sub parse {
     
     # check argument type
     if(my $ref = ref $_[0]) {
-        croak "can't deal with ref of any kind for now"
+        croak "fatal: Can't deal with ref of any kind for now"
     }
     
     my $delimiters = join '', @{ $self->{metachars} };
@@ -122,7 +122,7 @@ sub parse {
     
     while(defined(my $token = shift @tokens)) {
         next unless length $token;
-        $token .= shift @tokens if $tokens[0] eq $token;  # e.g: '&','&' => '&&'
+        $token .= shift @tokens if defined $tokens[0] and $tokens[0] eq $token;  # e.g: '&','&' => '&&'
         
         my $type = $self->{lookup_hash}{$token} || '';
         $type ||= 'metachar' if index($delimiters, $token) >= 0;
@@ -222,9 +222,10 @@ sub handlers {
     $default = delete $handlers{default} if $handlers{default};
     
     for my $handler (keys %handlers) {
-        carp "No such handler: $handler " and next unless exists $self->{handlers}{$handler};
+        carp "error: No such handler: $handler" and next unless exists $self->{handlers}{$handler};
         $self->{handlers}{$handler} = $handlers{$handler} || $default;
     }
+    
     for my $handler (keys %{$self->{handlers}}) {
         $self->{handlers}{$handler} ||= $default
     }
@@ -399,7 +400,7 @@ sub syntax {
     my $syntax = $self->{syntax};
     
     if($syntax ne $old) {
-        carp "Unknown syntax '$syntax' " and return unless exists $shell_syntaxes{$syntax};
+        carp "error: Unknown syntax '$syntax'" and return unless exists $shell_syntaxes{$syntax};
         
         # (re)initialize the lookup hash when the syntax given in argument 
         # is different from the syntax we already had
@@ -510,6 +511,26 @@ will produce the following trace:
     text: <
     >
 
+=head1 DIAGNOSTICS
+
+=over 4
+
+=item Can't deal with ref of any kind for now
+
+B<(F)> You gave a reference to C<parse()>, which is not handled at 
+this time. 
+
+=item No such handler: %s
+
+B<(E)> You gave an unknown handler name. Please check L<"handlers()"> 
+for the available handlers. 
+
+=item Unknown syntax '%s'
+
+B<(E)> You gave an unknown syntax. Please check L<"syntax()"> for the 
+available syntaxes. 
+
+=back
 
 =head1 CAVEATS
 
